@@ -1,10 +1,12 @@
 from bs4 import BeautifulSoup as bs
 from login import AO3_URL, login
 import re
+from datetime import date
+import json
 
 cred_file = '/Users/Mathilde/Documents/resources/utilities/creds/ao3-creds.json'
 
-def get_list_works(session):
+def get_list_works():
     session = login(cred_file)
     works_html = session.get(AO3_URL + 'users/Ellana42/works').text
     works_page = bs(works_html, 'html.parser')
@@ -12,7 +14,8 @@ def get_list_works(session):
     works = {work.find('a').text : work.find('a')['href'] for work in works_links}
     return works
 
-def get_work(title, session):
+def get_work(title):
+    session = login(cred_file)
     works = get_list_works(session)
     if title not in works.keys():
         print('This title is invalid')
@@ -23,15 +26,45 @@ def get_work(title, session):
 def get_chapters(work):
     chap_list = work.find('div', {'id': 'workskin'}).findAll(lambda tag: tag.name == 'div' and tag.get('class') == ['chapter'])
     chapters = [get_chap_text(chapter) for chapter in chap_list]
-    chapters_metadata = []
-    return chapters
+    chapters_metadata = {i+1: {'summary': get_summary(chapter), 'url': get_chap_url(chapter)} for i, chapter in enumerate(chap_list)}
+    return chapters, chapters_metadata
 
 def get_chap_text(chapter):
     text = '\n'.join([par.text for par in chapter.find('div', {'class': 'userstuff module', 'role' : 'article'}).findAll('p')])
     return text
 
-def post_chapter():
+def get_summary(chapter):
+    summary_module = chapter.find('div', {'class': 'summary module'})
+    if summary_module:
+        return summary_module.find('p').text
+    else:
+        return ''
+
+def get_chap_url(chapter):
+    link = chapter.find('li').a['href']
+    return link
+
+def load_metadata(chapter_nb):
+    with open('metadata.json') as metadata_file:
+        metadata = json.load(metadata_file)
+    return metadata[str(chapter_nb)]
+
+def load_text(chapter_nb):
+    with open('chapter_{}.md'.format(str(chapter_nb)), 'r') as chap_file:
+        text = chap_file.read()
+    return text
+
+def post_chapter(chapter_nb):
+    session = login(cred_file)
+    chapter_day, chapter_month, chapter_year = date.today().day, date.today().month, date.today().year
+    metadata = load_metadata(chapter_nb)
+    chapter_content = load_text(chapter_nb)
+    chapter_sum, chapter_url = metadata['summary'], metadata['url']
+
+    edit_page = session.get(AO3_URL + chapter_url)
+    auth_token = bs(edit_page.text, 'html.parser').find('meta', {'name':'csrf-token'})['content']
     form_data = {
+        #'chapter[title]': chapter_title,
         'chapter[position]': chapter_nb,
         'chapter[published_at(3i)]' : chapter_day,
         'chapter[published_at(2i)]' : chapter_month,
@@ -43,23 +76,21 @@ def post_chapter():
     }
 
     session.post(
-        chapter_url,
+        AO3_URL + chapter_url[:-5],
         data=form_data,
     )
 
 
-def pull(title, session):
-    session = login(cred_file)
-    work = get_work(title, session)
-    chapters = get_chapters(work)
+def pull(title):
+    work = get_work(title)
+    chapters, metadata= get_chapters(work)
     for i, chapter in enumerate(chapters):
         with open('chapter_{}.md'.format(i + 1), 'w') as file:
             file.write(chapter)
+    with open('metadata.json', 'w') as summary_file:
+        json.dump(metadata, summary_file)
 
 
-def push(title, file, chapter_number=None):
+def push(title, file, chapter_number):
     session = login(cred_file)
-    if not chapter_number:
-        chapter_number = re.search('\d*', file).string
-
 
