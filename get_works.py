@@ -3,11 +3,10 @@ from login import AO3_URL, login
 import re
 from datetime import date
 import json
-
-cred_file = '/Users/Mathilde/Documents/resources/utilities/creds/ao3-creds.json'
+from config import CRED_PATH
 
 def get_list_works():
-    session = login(cred_file)
+    session = login(CRED_PATH)
     works_html = session.get(AO3_URL + 'users/Ellana42/works').text
     works_page = bs(works_html, 'html.parser')
     works_links = works_page.find('ol', {'class' : 'work index group'}).findAll('li', recursive=False)
@@ -15,7 +14,7 @@ def get_list_works():
     return works
 
 def get_work(title):
-    session = login(cred_file)
+    session = login(CRED_PATH)
     works = get_list_works(session)
     if title not in works.keys():
         print('This title is invalid')
@@ -55,7 +54,7 @@ def load_text(chapter_nb):
     return text
 
 def post_chapter(chapter_nb):
-    session = login(cred_file)
+    session = login(CRED_PATH)
     chapter_day, chapter_month, chapter_year = date.today().day, date.today().month, date.today().year
     metadata = load_metadata(chapter_nb)
     chapter_content = load_text(chapter_nb)
@@ -92,5 +91,5 @@ def pull(title):
 
 
 def push(title, file, chapter_number):
-    session = login(cred_file)
+    session = login(CRED_PATH)
 
