@@ -4,6 +4,7 @@ from datetime import date
 import json
 from config import CRED_PATH
 
+# TODO diff/merge support
 # TODO add beg notes and end notes support
 
 
@@ -23,7 +24,7 @@ def get_list_works():
 
 def get_work(title):
     session = login(CRED_PATH)
-    works = get_list_works(session)
+    works = get_list_works()
     if title not in works.keys():
         print('This title is invalid')
         return None
