@@ -4,6 +4,8 @@ from datetime import date
 import json
 from config import CRED_PATH
 
+# TODO add beg notes and end notes support
+
 
 def get_list_works():
     session = login(CRED_PATH)
@@ -68,9 +70,14 @@ def get_chap_url(chapter):
     return link
 
 
-def load_metadata(chapter_nb):
+def load_work_metadata():
     with open('metadata.json') as metadata_file:
         metadata = json.load(metadata_file)
+    return metadata
+
+
+def load_chapter_metadata(chapter_nb):
+    metadata = load_work_metadata()
     return metadata[str(chapter_nb)]
 
 
@@ -84,7 +91,7 @@ def post_chapter(chapter_nb):
     session = login(CRED_PATH)
     chapter_day, chapter_month, chapter_year = date.today().day, date.today(
     ).month, date.today().year
-    metadata = load_metadata(chapter_nb)
+    metadata = load_chapter_metadata(chapter_nb)
     chapter_content = load_text(chapter_nb)
     chapter_sum, chapter_url = metadata['summary'], metadata['url']
 
@@ -93,18 +100,27 @@ def post_chapter(chapter_nb):
                     'html.parser').find('meta',
                                         {'name': 'csrf-token'})['content']
     form_data = {
-        # 'chapter[title]': chapter_title,
+        'utf8': '✓',
+        '_method': 'patch',
+        'authenticity_token': auth_token,
+        'chapter[title]': '',
         'chapter[position]': chapter_nb,
+        'chapter[wip_length]': chapter_nb,
         'chapter[published_at(3i)]': chapter_day,
         'chapter[published_at(2i)]': chapter_month,
         'chapter[published_at(1i)]': chapter_year,
-        'chapter[author_attributes][ids][]': 8812570,
+        'chapter[author_attributes][ids][]': '8812570',
+        'chapter[author_attributes][byline]': '',
         'chapter[summary]': chapter_sum,
+        'front-notes-options-show': '1',
+        'chapter[notes]': '',
+        'end-notes-options-show': '1',
+        'chapter[endnotes]': '',
         'chapter[content]': chapter_content,
-        'authenticity_token': auth_token,
+        'post_without_preview_button': 'Post'
     }
 
-    session.post(
+    return session.post(
         AO3_URL + chapter_url[:-5],
         data=form_data,
     )
@@ -121,5 +137,4 @@ def pull(title):
 
 
 def push(title, file, chapter_number):
-    # session = login(CRED_PATH)
     pass
