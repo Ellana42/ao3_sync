@@ -136,5 +136,11 @@ def pull(title):
         json.dump(metadata, summary_file)
 
 
-def push(title, file, chapter_number):
+def push():
+    work_metadata = load_work_metadata() 
+    for chapter in work_metadata:
+        post_chapter(chapter)
+
+
+def init_work():
     pass
