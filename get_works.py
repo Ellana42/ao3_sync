@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup as bs
-from login import AO3_URL, login
+from login import AO3_URL, login, get_creds
 from datetime import date
 import json
 from config import CRED_PATH
@@ -7,13 +7,19 @@ from config import CRED_PATH
 # TODO diff/merge support
 # TODO add beg notes and end notes support
 # TODO title in metadata support
-# TODO init
 # TODO get author token
+# TODO document
 
 
 def get_list_works():
+    '''
+    Get the list of works by the user
+
+    :return: dictionnary {work_title: url}
+    '''
     session = login(CRED_PATH)
-    works_html = session.get(AO3_URL + 'users/Ellana42/works').text
+    username = get_creds(CRED_PATH)['username']
+    works_html = session.get(AO3_URL + f'users/{username}/works').text
     works_page = bs(works_html, 'html.parser')
     works_links = works_page.find('ol', {
         'class': 'work index group'
@@ -26,6 +32,13 @@ def get_list_works():
 
 
 def get_work(title):
+    '''
+    Get the webpage content of a given works
+
+    :param title: string, exact title of the work
+    :return: 
+        string, webpage content
+    '''
     session = login(CRED_PATH)
     works = get_list_works()
     if title not in works.keys():
@@ -36,6 +49,12 @@ def get_work(title):
 
 
 def get_chapters(work):
+    '''
+    Get the chapter list for a given work
+    :param title: string, exact title of the work
+    :return: 
+        tuple (list of chapters content, dict of chapter metadata)
+    '''
     chap_list = work.find('div', {
         'id': 'workskin'
     }).findAll(
@@ -52,6 +71,12 @@ def get_chapters(work):
 
 
 def get_chap_text(chapter):
+    '''
+    Properly formats the text from chapter content
+    :param chapter: content of the chapter div
+    :return:
+        cleaned text
+    '''
     text = '\n'.join([
         par.text for par in chapter.find('div', {
             'class': 'userstuff module',
@@ -62,6 +87,12 @@ def get_chap_text(chapter):
 
 
 def get_summary(chapter):
+    '''
+    Gets the summary from the chapter html
+    :param chapter: html of the chapter
+    :return:
+        summary text
+    '''
     summary_module = chapter.find('div', {'class': 'summary module'})
     if summary_module:
         return summary_module.find('p').text
@@ -70,28 +101,42 @@ def get_summary(chapter):
 
 
 def get_chap_url(chapter):
+    '''
+    Gets the url where the chapter is edited
+    :param chapter: html of the chapter
+    :return: url where edit chapter
+    '''
     link = chapter.find('li').a['href']
     return link
 
 
 def load_work_metadata():
+    ''' load the info inside metadata.json as dict '''
     with open('metadata.json') as metadata_file:
         metadata = json.load(metadata_file)
     return metadata
 
 
 def load_chapter_metadata(chapter_nb):
+    ''' Gets the dictionnary of chapter metadata from work metadata '''
     metadata = load_work_metadata()
     return metadata[str(chapter_nb)]
 
 
 def load_text(chapter_nb):
+    ''' 
+    Loads as string the text from a chapter file  
+    :param chapter_nb: integer or string, number of the desired chapter
+    '''
     with open('chapter_{}.md'.format(str(chapter_nb)), 'r') as chap_file:
         text = chap_file.read()
     return text
 
 
 def post_chapter(chapter_nb):
+    '''
+    Posts on ao3 the chapter nb (chapter_nb) as written in the folder
+    '''
     session = login(CRED_PATH)
     chapter_day, chapter_month, chapter_year = date.today().day, date.today(
     ).month, date.today().year
@@ -131,6 +176,10 @@ def post_chapter(chapter_nb):
 
 
 def pull(title):
+    '''
+    Gets all chapters and metadata from work named (title) 
+    and writes them to cwd
+    '''
     work = get_work(title)
     chapters, metadata = get_chapters(work)
     for i, chapter in enumerate(chapters):
@@ -141,10 +190,9 @@ def pull(title):
 
 
 def push():
+    '''
+    Posts every chapter referenced in directory metadata 
+    '''
     work_metadata = load_work_metadata() 
     for chapter in work_metadata:
         post_chapter(chapter)
-
-
-def init_work():
-    pass
